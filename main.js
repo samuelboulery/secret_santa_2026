@@ -319,8 +319,10 @@ function loadGramophone() {
 function setupInteraction() {
   window.addEventListener("resize", resizeRenderer);
 
+  let isProcessing = false; // Évite les doubles clics rapides
+
   const handlePointer = (clientX, clientY) => {
-    if (!scene || !camera || !playButton3D) return;
+    if (!scene || !camera || !playButton3D || isProcessing) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -332,22 +334,38 @@ function setupInteraction() {
     // Le clic sert maintenant à activer le bouton 3D au sol
     const intersects = raycaster.intersectObject(playButton3D, true);
     if (intersects.length > 0) {
+      isProcessing = true;
       toggleGramophone();
+      // Réinitialise après un court délai pour éviter les doubles déclenchements
+      setTimeout(() => {
+        isProcessing = false;
+      }, 300);
     }
   };
 
   canvas.addEventListener("click", (event) => {
+    event.preventDefault();
     handlePointer(event.clientX, event.clientY);
   });
+
+  // Gestion améliorée des événements tactiles
+  canvas.addEventListener(
+    "touchstart",
+    (event) => {
+      event.preventDefault();
+    },
+    { passive: false }
+  );
 
   canvas.addEventListener(
     "touchend",
     (event) => {
+      event.preventDefault();
       const touch = event.changedTouches[0];
       if (!touch) return;
       handlePointer(touch.clientX, touch.clientY);
     },
-    { passive: true }
+    { passive: false }
   );
 }
 
@@ -395,48 +413,51 @@ function createCountdownTexture(text) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
   
-  // Taille du canvas (ratio 2:1 pour éviter la déformation)
-  canvas.width = 1024;
-  canvas.height = 512;
+  // Résolution adaptée au pixel ratio pour éviter le flou sur mobile
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const baseWidth = 1024;
+  const baseHeight = 512;
+  
+  canvas.width = baseWidth * pixelRatio;
+  canvas.height = baseHeight * pixelRatio;
+  
+  // Mise à l'échelle du contexte pour la haute résolution
+  context.scale(pixelRatio, pixelRatio);
   
   // Fond transparent
-  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.clearRect(0, 0, baseWidth, baseHeight);
   
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
+  const centerX = baseWidth / 2;
+  const centerY = baseHeight / 2;
   
-  context.font = "bold 300px Decort, Arial";
+  // Taille de police adaptée
+  const fontSize = 300;
+  context.font = `bold ${fontSize}px Decort, Arial`;
   context.textAlign = "center";
   context.textBaseline = "middle";
   
-  // Effet de halo lumineux - plusieurs passes avec ombres portées
-  // Passe 1 : Halo externe très large (couleur chaude/orange)
-  context.shadowColor = "rgba(255, 180, 80, 0.9)";
-  context.shadowBlur = 50;
+  // Effet de halo optimisé - moins de passes mais mieux géré
+  // Passe 1 : Halo externe (couleur chaude/orange) - flou modéré
+  context.shadowColor = "rgba(255, 180, 80, 0.7)";
+  context.shadowBlur = 30;
   context.shadowOffsetX = 0;
   context.shadowOffsetY = 0;
-  context.fillStyle = "rgba(255, 200, 100, 0.4)";
+  context.fillStyle = "rgba(255, 200, 100, 0.5)";
   context.fillText(text, centerX, centerY);
   
-  // Passe 2 : Halo moyen (blanc chaud)
-  context.shadowColor = "rgba(255, 240, 200, 0.8)";
-  context.shadowBlur = 35;
-  context.fillStyle = "rgba(255, 255, 200, 0.6)";
+  // Passe 2 : Halo moyen (blanc chaud) - flou moyen
+  context.shadowColor = "rgba(255, 240, 200, 0.6)";
+  context.shadowBlur = 20;
+  context.fillStyle = "rgba(255, 255, 200, 0.7)";
   context.fillText(text, centerX, centerY);
   
-  // Passe 3 : Halo interne (blanc lumineux)
-  context.shadowColor = "rgba(255, 255, 255, 0.9)";
-  context.shadowBlur = 25;
-  context.fillStyle = "rgba(255, 255, 255, 0.8)";
+  // Passe 3 : Halo interne (blanc lumineux) - flou léger
+  context.shadowColor = "rgba(255, 255, 255, 0.8)";
+  context.shadowBlur = 12;
+  context.fillStyle = "rgba(255, 255, 255, 0.9)";
   context.fillText(text, centerX, centerY);
   
-  // Passe 4 : Texte principal (blanc pur, très lumineux)
-  context.shadowColor = "rgba(255, 255, 255, 1)";
-  context.shadowBlur = 15;
-  context.fillStyle = "#ffffff";
-  context.fillText(text, centerX, centerY);
-  
-  // Passe finale : Texte solide sans ombre pour le cœur
+  // Texte principal solide (blanc pur) - pas d'ombre pour netteté
   context.shadowBlur = 0;
   context.fillStyle = "#ffffff";
   context.fillText(text, centerX, centerY);
@@ -510,22 +531,36 @@ function toggleGramophone() {
   if (!audioEl.src) {
     audioEl.src = "assets/Clair_Obscur_Expedition_33.mp3";
     audioEl.loop = true;
+    // Précharge l'audio pour éviter les délais
+    audioEl.load();
   }
 
-  if (isPlaying) {
+  // Vérifie l'état réel de l'audio pour éviter les désynchronisations
+  const actuallyPlaying = !audioEl.paused && !audioEl.ended && audioEl.currentTime > 0;
+
+  if (actuallyPlaying) {
     // Mise en pause
     audioEl.pause();
+    isPlaying = false;
   } else {
     // Lecture ou reprise
     // Si c'est la première lecture ou si la piste est terminée, on remet à 0
     if (audioEl.currentTime === 0 || audioEl.ended) {
       audioEl.currentTime = 0;
     }
-    audioEl
-      .play()
-      .catch((err) => {
-        console.error("Lecture audio bloquée :", err);
-      });
+    
+    const playPromise = audioEl.play();
+    
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          isPlaying = true;
+        })
+        .catch((err) => {
+          console.error("Lecture audio bloquée :", err);
+          isPlaying = false;
+        });
+    }
   }
 }
 
