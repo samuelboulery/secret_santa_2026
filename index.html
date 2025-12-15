@@ -2,19 +2,46 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World - Secret Santa 2026</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Gramophone 3D</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #050307;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      #scene {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        outline: none;
+        cursor: grab;
+      }
+
+      #scene:active {
+        cursor: grabbing;
+      }
+    </style>
   </head>
   <body>
-    <main class="app">
-      <h1>Hello world 🎄</h1>
-      <p>Petite appli de base prête pour un déploiement sur Netlify.</p>
-      <button id="hello-btn">Clique-moi</button>
-      <p id="message" class="message"></p>
-    </main>
+    <canvas id="scene"></canvas>
+    <audio id="gramophone-audio" preload="auto"></audio>
 
-    <script src="main.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
   </body>
 </html>
 
