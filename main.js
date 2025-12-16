@@ -35,8 +35,10 @@ const pointer = new THREE.Vector2();
 
 function initScene() {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050307);
-  scene.fog = new THREE.Fog(0x050307, 6, 20);
+  // Fond très sombre marron
+  scene.background = new THREE.Color(0x0b0602);
+  // Brouillard marron foncé pour renforcer l'ambiance
+  scene.fog = new THREE.Fog(0x1a0e06, 5, 20);
 
   const aspect = window.innerWidth / window.innerHeight;
   camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 50);
@@ -44,16 +46,17 @@ function initScene() {
   camera.position.set(0.3, 1.2, 5.5);
   camera.lookAt(0, 0.9, 0);
 
-  // Lumière ambiante faible mais un peu plus présente
-  const ambient = new THREE.AmbientLight(0x0b0b12, 0.3);
+  // Lumière ambiante marron chaud
+  const ambient = new THREE.AmbientLight(0x30160a, 0.7);
   scene.add(ambient);
 
   // Spot principal qui éclaire le gramophone (effet scène / projecteur élargi)
+  // Spot principal resserré sur le gramophone
   const keyLight = new THREE.SpotLight(
     0xffe0b2,
     18.0,
-    30,
-    Math.PI / 3.2,
+    18,              // distance réduite pour concentrer la lumière
+    Math.PI / 5,     // cône plus étroit
     0.35,
     1.3
   );
@@ -64,17 +67,28 @@ function initScene() {
   scene.add(keyLight);
   scene.add(keyLight.target);
 
-  // Lumière de remplissage froide pour déboucher les ombres
-  const fillLight = new THREE.PointLight(0x4f46e5, 0.8, 14);
+  // Lumière de remplissage chaude légèrement orangée pour colorer les ombres
+  const fillLight = new THREE.PointLight(0x9c5a2a, 0.8, 16);
   fillLight.position.set(-2.5, 2.0, 3.2);
   scene.add(fillLight);
 
+  // Rim light chaude derrière le gramophone pour un contour doré
+  const rimWarm = new THREE.PointLight(0xffa860, 0.7, 10);
+  rimWarm.position.set(1.8, 1.6, -2.5);
+  scene.add(rimWarm);
+
+  // Rim light froide de l'autre côté pour un contraste coloré
+  const rimCool = new THREE.PointLight(0x5be5ff, 0.6, 10);
+  rimCool.position.set(-2.0, 1.8, -1.5);
+  scene.add(rimCool);
+
   // Spot léger face au gramophone (depuis l'avant)
+  // Spot léger en façade, plus serré sur le pavillon
   const frontSpot = new THREE.SpotLight(
     0xfff4e6,
-    3.0,
-    12,
-    Math.PI / 5,
+    3.5,
+    8,               // distance réduite
+    Math.PI / 9,     // cône plus étroit pour se focaliser sur le pavillon
     0.4,
     1.2
   );
@@ -87,7 +101,8 @@ function initScene() {
   // Sol discret pour recevoir les ombres (sans cercle lumineux)
   const floorGeo = new THREE.CircleGeometry(4, 64);
   const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x050308,
+    // Marron très foncé pour le sol
+    color: 0x120804,
     roughness: 1.0,
     metalness: 0.0,
   });
@@ -186,14 +201,16 @@ function initScene() {
 
   renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    // Antialias désactivé pour les très petits écrans pour gagner en performances
+    antialias: window.innerWidth > 768,
     powerPreference: "high-performance",
   });
   resizeRenderer();
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  // Légère augmentation de l'exposition globale pour éclaircir le rendu
+  renderer.toneMappingExposure = 1.6;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   // Contrôles de caméra : drag pour tourner autour du gramophone
@@ -220,26 +237,39 @@ function resizeRenderer() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
+  const isMobile = width <= 768;
+
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 
   renderer.setSize(width, height);
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  // Pixel ratio limité pour les mobiles pour préserver les performances
+  const pixelRatio = isMobile
+    ? Math.min(window.devicePixelRatio || 1, 1.5)
+    : Math.min(window.devicePixelRatio || 1, 2);
   renderer.setPixelRatio(pixelRatio);
 }
 
 function loadGramophone() {
   const loader = new FBXLoader();
 
-  // Textures PBR (maps exportées en .tga.png)
+  // Textures PBR du modèle unique de gramophone
   const texLoader = new THREE.TextureLoader();
-  const baseColor = texLoader.load("assets/DefaultMaterial_Base_color.tga.png");
-  const metalnessMap = texLoader.load("assets/DefaultMaterial_Metallic.tga.png");
-  const roughnessMap = texLoader.load("assets/DefaultMaterial_Roughness.tga.png");
-  const normalMap = texLoader.load(
-    "assets/DefaultMaterial_Normal_OpenGL.tga.png"
+  const baseColor = texLoader.load(
+    "assets/gramophone/TEX_Grammophon_Good_BC.png"
   );
-  const aoMap = texLoader.load("assets/DefaultMaterial_Mixed_AO.tga.png");
+  const metalnessMap = texLoader.load(
+    "assets/gramophone/TEX_Grammophon_Good_MT.png"
+  );
+  const roughnessMap = texLoader.load(
+    "assets/gramophone/TEX_Grammophon_Good_R.png"
+  );
+  const normalMap = texLoader.load(
+    "assets/gramophone/TEX_Grammophon_Good_N.png"
+  );
+  const aoMap = texLoader.load(
+    "assets/gramophone/TEX_Grammophon_Good_AO.png"
+  );
 
   // Espace couleur correct pour les textures de couleur / AO
   baseColor.colorSpace = THREE.SRGBColorSpace;
@@ -255,9 +285,9 @@ function loadGramophone() {
     roughness: 1.0,
   });
 
-  // Place ton modèle dans /Users/sam/secret_santa_2026/assets/gramophone.fbx
+  // Modèle unique : /Users/sam/secret_santa_2026/assets/gramophone/Grammophone_Lowpoly.fbx
   loader.load(
-    "assets/gramophone.fbx",
+    "assets/gramophone/Grammophone_Lowpoly.fbx",
     (object) => {
       gramophone = object;
 
@@ -304,8 +334,8 @@ function loadGramophone() {
         gramophone.position
       );
 
-      // Légère rotation de 3/4 pour un rendu plus cinématographique
-      gramophone.rotation.y = -Math.PI / 5;
+      // Rotation du gramophone pour orienter le pavillon face à la caméra (180°)
+      gramophone.rotation.y = Math.PI;
 
       scene.add(gramophone);
     },
@@ -566,6 +596,10 @@ function toggleGramophone() {
 
 function animate() {
   requestAnimationFrame(animate);
+
+  const elapsed = clock ? clock.getElapsedTime() : 0;
+
+  // (Animation des lumières féériques supprimée)
 
   // Mise à jour de l’inertie des contrôles de caméra
   if (controls) {

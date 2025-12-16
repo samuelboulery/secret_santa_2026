@@ -15,12 +15,18 @@ body {
     sans-serif;
   background-color: #050307; /* très sombre, quasi noir chaud */
   overflow: hidden;
+  margin: 0;
 }
 
 #scene {
   display: block;
   width: 100vw;
-  height: 100vh;
-  cursor: pointer; /* pour suggérer qu’on peut cliquer sur le gramophone */
+  height: 100vh; /* plein écran, même sur mobile */
+  outline: none;
+  cursor: grab; /* suggère que l’on peut faire tourner la scène */
+}
+
+#scene:active {
+  cursor: grabbing;
 }
 
